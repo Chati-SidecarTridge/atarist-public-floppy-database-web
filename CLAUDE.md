@@ -11,10 +11,30 @@ sibling `md-browser` firmware repo), adapted to run for any visitor with no
 device attached.
 
 **Stack — plain static, no build.** The only local files are `index.html`,
-`styles.css` (copied verbatim from `md-browser`, so it carries some unused
-file-manager rules), and `favicon.png`. The page is driven by Alpine.js and
-styled with Pure.css + Font Awesome, all loaded from CDNs. Run locally with
-`python3 -m http.server` and open the root.
+`styles.css`, and `favicon.png`. `styles.css` started as a verbatim copy of
+`md-browser`'s (so it carries some unused file-manager rules); site-only rules
+(e.g. the Search/Browse mode toggle) are appended at the end. The page is driven
+by Alpine.js and styled with Pure.css + Font Awesome, all loaded from CDNs. Run
+locally with `python3 -m http.server` and open the root. There is no lint or test
+tooling; verify changes in the browser.
+
+**Code layout.** All logic is one Alpine component, `appManager()`, in an inline
+`<script>` in `index.html`'s `<head>`, bound via `x-data` on `<body>`. Everything
+is derived from `parsedEntries` through methods (no cached state), and the markup
+has two views switched by `mode`: `'search'` (Recent + Archive sections filtered by
+the search box and taxonomy chips) and `'browse'` (letter chips with pages of
+`BROWSE_PAGE_SIZE`). The `<head>` also has the SEO metadata (title, description,
+OG/Twitter tags, JSON-LD). If you change the copy, keep those consistent with it.
+
+**Cookie banner and analytics.** The block before `</head>` is copied verbatim
+from `../rp-webusb-picoflash/index.html` (same as sidecartridge.com):
+orestbida/cookieconsent v2.9.2 (MIT) inlined, plus the sidecartridge.com GA4
+property `G-6VT9RXTJ2N` as a `type="text/plain" data-cookiecategory="analytics"`
+script. GA runs only after consent and only loads gtag on `*.sidecartridge.com`,
+so local tests send no hits. On sidecartridge.com hosts `cookie_domain` is
+`sidecartridge.com`, so the `cc_cookie` choice is shared with the main site. The
+banner uses the default light theme (no `c_darkmode` body class). The footer's
+"Cookies" link (`data-cc="c-settings"`) reopens the settings.
 
 **Data.** The catalog is fetched client-side from
 `https://ataristdb.sidecartridge.com/db/*.csv` (`a`–`z`, `0`–`9`, `_`), and each
@@ -22,8 +42,18 @@ entry links to its image at `https://ataristdb.sidecartridge.com/<path>`. Becaus
 GitHub Pages is HTTPS-only and browsers block http subresource fetches as mixed
 content, that host must serve the CSVs over HTTPS.
 
-**Deploy.** GitHub Pages via `.github/workflows/deploy.yml` (no build; uploads the
-repo root). `.nojekyll` disables Jekyll. Pages source must be set to "GitHub
+CSV rows are `;`-separated with exactly 6 fields. Other rows are skipped. Only
+fields 1, 3, 5 and 6 are used: `name`, `time` (Unix seconds, often empty),
+`label` (the taxonomy chip), and `path`. **A non-empty `time` is what makes an
+entry "new":** the Recent section and the Browse "New" chip show timestamped
+entries newest-first, while the Archive section and the letter chips show only
+untimestamped entries, sorted by name. Rows from `_.csv` are deduplicated against
+what's already loaded. Failed fetches are silently ignored.
+
+**Deploy.** Pushing to `main` deploys to GitHub Pages via
+`.github/workflows/deploy.yml` (no build; uploads the repo root, so every tracked
+file is published). The custom domain is in `CNAME`
+(`ataristpublicfloppydb.sidecartridge.com`). `.nojekyll` disables Jekyll. Pages source must be set to "GitHub
 Actions" in repo settings.
 
 **Faithfulness note.** The page is a faithful port of `browser_home.shtml`'s browse
